@@ -875,6 +875,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
 
         MemoryUsageMonitor.shared.startMonitoring()
+        // Claude Code / Codex session tracking (polls local session files; no network)
+        AgentSessionsManager.shared.bootstrap()
 
         ReminderLiveActivityManager.shared.$activeWindowReminders
             .receive(on: RunLoop.main)

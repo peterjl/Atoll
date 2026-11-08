@@ -51,6 +51,7 @@ struct TabSelectionView: View {
     @State private var showQuickSharePopover = false
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
+    @Default(.enableAgentSessionsFeature) var enableAgentSessionsFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
     @Default(.timerDisplayMode) var timerDisplayMode
     @Default(.enableThirdPartyExtensions) private var enableThirdPartyExtensions
@@ -85,6 +86,11 @@ struct TabSelectionView: View {
         // Usage tab only shown when LLM usage feature is enabled
         if Defaults[.enableLLMUsageFeature] {
             tabsArray.append(TabModel(label: "Usage", icon: "chart.bar.doc.horizontal", view: .llmUsage))
+        }
+
+        // Live Claude Code / Codex sessions
+        if enableAgentSessionsFeature {
+            tabsArray.append(TabModel(label: "Agents", icon: "terminal.fill", view: .agents))
         }
 
         if Defaults[.enableNotes] || (Defaults[.enableClipboardManager] && Defaults[.clipboardDisplayMode] == .separateTab) {

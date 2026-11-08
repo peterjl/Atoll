@@ -435,6 +435,8 @@ private enum SettingsSearchIndex {
         // Stats
         SettingsSearchEntry(tab: .stats, title: "Enable system stats monitoring", keywords: ["stats", "monitoring"], highlightID: SettingsTab.stats.highlightID(for: "Enable system stats monitoring")),
         SettingsSearchEntry(tab: .stats, title: "Enable LLM Usage Monitor", keywords: ["llm", "usage", "ai", "monitor"], highlightID: SettingsTab.stats.highlightID(for: "Enable LLM Usage Monitor")),
+        SettingsSearchEntry(tab: .stats, title: "Agents Tab", keywords: ["agents", "claude", "codex", "sessions", "terminal", "coding"], highlightID: SettingsTab.stats.highlightID(for: "Agents Tab")),
+        SettingsSearchEntry(tab: .stats, title: "Agent Ready Alert", keywords: ["agents", "claude", "codex", "notify", "ready", "sneak peek"], highlightID: SettingsTab.stats.highlightID(for: "Agent Ready Alert")),
         SettingsSearchEntry(tab: .stats, title: "Claude Provider", keywords: ["llm", "claude", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Claude Provider")),
         SettingsSearchEntry(tab: .stats, title: "Codex Provider", keywords: ["llm", "codex", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Codex Provider")),
         SettingsSearchEntry(tab: .stats, title: "Cursor Provider", keywords: ["llm", "cursor", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Cursor Provider")),
@@ -7976,6 +7978,8 @@ struct StatsSettings: View {
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableLLMUsageFeature) var enableLLMUsageFeature
     @Default(.enableNewAPIProvider) var enableNewAPIProvider
+    @Default(.enableAgentSessionsFeature) var enableAgentSessionsFeature
+    @Default(.agentSessionsCodexLookbackHours) var agentSessionsCodexLookbackHours
     @Default(.statsStopWhenNotchCloses) var statsStopWhenNotchCloses
     @Default(.statsUpdateInterval) var statsUpdateInterval
     @Default(.showCpuGraph) var showCpuGraph
@@ -8036,6 +8040,35 @@ struct StatsSettings: View {
                 Text("General")
             } footer: {
                 Text("When enabled, the Stats tab will display real-time system performance graphs. This feature requires system permissions and may use additional battery. Enabling LLM Usage Monitor adds a Usage tab that tracks token usage and spend across your configured AI providers.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+
+            Section {
+                Defaults.Toggle(key: .enableAgentSessionsFeature) {
+                    Text("Show Agents tab")
+                }
+                .settingsHighlight(id: highlightID("Agents Tab"))
+                if enableAgentSessionsFeature {
+                    Defaults.Toggle(key: .agentSessionsShowClaude) {
+                        Text("Claude Code")
+                    }
+                    Defaults.Toggle(key: .agentSessionsShowCodex) {
+                        Text("Codex")
+                    }
+                    Defaults.Toggle(key: .agentSessionsNotifyOnReady) {
+                        Text("Show a notch alert when a session finishes or needs input")
+                    }
+                    .settingsHighlight(id: highlightID("Agent Ready Alert"))
+                    Stepper(value: $agentSessionsCodexLookbackHours, in: 1...48, step: 1) {
+                        Text("Keep Codex app threads for \(Int(agentSessionsCodexLookbackHours)) h after their last update")
+                    }
+                }
+            } header: {
+                Text("Coding Agents")
+            } footer: {
+                Text("Lists running Claude Code and Codex sessions by reading their local session files (no network requests). Click a session to jump to its Terminal, iTerm or editor window; tap the notch alert to jump to the session that just finished. Claude's 5h / 7d quota appears once your status line script saves its input to ~/.claude/atoll/statusline/<session_id>.json.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)

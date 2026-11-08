@@ -195,6 +195,10 @@ struct ContentView: View {
             return CGSize(width: baseSize.width, height: resolvedHeight)
         }
 
+        if coordinator.currentView == .agents {
+            return CGSize(width: baseSize.width, height: max(baseSize.height, NotchAgentsView.preferredHeight))
+        }
+
         if coordinator.currentView == .clipboard {
             // Clipboard has its own fixed height source; don't inherit whatever notes
             // layout state happens to be set.
@@ -721,6 +725,9 @@ struct ContentView: View {
                         if handleClosedMusicWaveformTapIfNeeded() {
                             return
                         }
+                        if handleAgentSneakPeekTapIfNeeded() {
+                            return
+                        }
                         if vm.notchState == .closed && Defaults[.enableHaptics] {
                             triggerHapticIfAllowed()
                         }
@@ -1122,7 +1129,7 @@ struct ContentView: View {
                             styleOverride: batteryModel.activeTemporaryHUDKind.map { resolvedBatteryNotificationStyle(for: $0) }
                         )
                         .id(batteryModel.activeTemporaryHUDToken)
-                      } else if isSneakPeekVisibleOnCurrentScreen && (Defaults[.inlineHUD] || isAirPodsListeningModeSneak) && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && !coordinator.sneakPeek.type.isExtensionPayload && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
+                      } else if isSneakPeekVisibleOnCurrentScreen && (Defaults[.inlineHUD] || isAirPodsListeningModeSneak) && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && (coordinator.sneakPeek.type != .agentSession) && !coordinator.sneakPeek.type.isExtensionPayload && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(
                                   coordinator.sneakPeek.type == .capsLock
@@ -1176,7 +1183,7 @@ struct ContentView: View {
                        }
                       
                       if isSneakPeekVisibleOnCurrentScreen {
-                          if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && (coordinator.sneakPeek.type != .capsLock) && !coordinator.sneakPeek.type.isExtensionPayload && !Defaults[.inlineHUD] && !isAirPodsListeningModeSneak && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
+                          if (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && (coordinator.sneakPeek.type != .timer) && (coordinator.sneakPeek.type != .reminder) && (coordinator.sneakPeek.type != .capsLock) && (coordinator.sneakPeek.type != .agentSession) && !coordinator.sneakPeek.type.isExtensionPayload && !Defaults[.inlineHUD] && !isAirPodsListeningModeSneak && ((coordinator.sneakPeek.type != .volume && coordinator.sneakPeek.type != .brightness && coordinator.sneakPeek.type != .backlight) || vm.notchState == .closed) {
                               SystemEventIndicatorModifier(eventType: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, sendEventBack: { _ in
                                   //
                               })
@@ -1258,6 +1265,26 @@ struct ContentView: View {
                                   .padding(.bottom, 10)
                               }
                           }
+                          // Coding agent finished / needs input
+                          else if coordinator.sneakPeek.type == .agentSession {
+                              if !vm.hideOnClosed {
+                                  let accent = (coordinator.sneakPeek.accentColor ?? .green).ensureMinimumBrightness(factor: 0.7)
+                                  GeometryReader { geo in
+                                      HStack(spacing: 6) {
+                                          Image(systemName: coordinator.sneakPeek.icon.isEmpty ? "sparkles" : coordinator.sneakPeek.icon)
+                                              .font(.system(size: 11, weight: .semibold))
+                                              .foregroundStyle(accent)
+                                          MarqueeText(
+                                              .constant([coordinator.sneakPeek.title, coordinator.sneakPeek.subtitle].filter { !$0.isEmpty }.joined(separator: " · ")),
+                                              textColor: accent,
+                                              minDuration: 1,
+                                              frameWidth: max(0, geo.size.width - 18)
+                                          )
+                                      }
+                                  }
+                                  .padding(.bottom, 10)
+                              }
+                          }
                       }
                   }
               }
@@ -1296,6 +1323,8 @@ struct ContentView: View {
                                   NotchStatsView()
                               case .llmUsage:
                                   NotchLLMUsageView()
+                              case .agents:
+                                  NotchAgentsView()
                               case .colorPicker:
                                   NotchColorPickerView()
                             case .notes:
@@ -2111,6 +2140,16 @@ struct ContentView: View {
             && !isCurrentScreenExpansionVisible
             && (!musicManager.isPlayerIdle || musicManager.bundleIdentifier != nil)
             && !coordinator.firstLaunch
+    }
+
+    /// Tapping the closed notch while a "Claude/Codex is ready" sneak peek is showing jumps to that session.
+    private func handleAgentSneakPeekTapIfNeeded() -> Bool {
+        guard vm.notchState == .closed,
+              isSneakPeekVisibleOnCurrentScreen,
+              coordinator.sneakPeek.type == .agentSession else { return false }
+        guard AgentSessionsManager.shared.focusAnnouncedSession() else { return false }
+        coordinator.toggleSneakPeek(status: false, type: .agentSession)
+        return true
     }
 
     private func handleClosedMusicWaveformTapIfNeeded() -> Bool {
@@ -2995,6 +3034,9 @@ struct ContentView: View {
 
     private func resolvedSneakPeekStyle() -> SneakPeekStyle {
         if case .extensionLiveActivity = coordinator.sneakPeek.type {
+            return .standard
+        }
+        if coordinator.sneakPeek.type == .agentSession {
             return .standard
         }
         return coordinator.sneakPeek.styleOverride ?? Defaults[.sneakPeekStyles]
