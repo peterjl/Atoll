@@ -302,11 +302,9 @@ private struct AgentKindBadge: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Image(systemName: kind == .claude ? "sparkle" : "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(kind.tint)
+            AgentLogo(kind: kind, size: 15)
                 .frame(width: 24, height: 24)
-                .background(kind.tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .background(kind.tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             Circle()
                 .fill(state.tint)
                 .frame(width: 7, height: 7)
@@ -374,9 +372,7 @@ struct AgentQuotaChip: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: quota.kind == .claude ? "sparkle" : "chevron.left.forwardslash.chevron.right")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(quota.kind.tint)
+            AgentLogo(kind: quota.kind, size: 11)
             ForEach(quota.windows) { window in
                 HStack(spacing: 2) {
                     Text(window.label).foregroundStyle(.secondary)
@@ -399,11 +395,50 @@ struct AgentQuotaChip: View {
 // MARK: - Styling
 
 private extension AgentKind {
+    /// Claude orange (#D97757) and the middle stop of Codex's violet-to-blue gradient (#7A9DFF).
     var tint: Color {
         switch self {
-        case .claude: return Color(red: 0.85, green: 0.47, blue: 0.34)
-        case .codex: return Color(red: 0.55, green: 0.75, blue: 1.0)
+        case .claude: return Color(red: 0.851, green: 0.467, blue: 0.341)
+        case .codex: return Color(red: 0.478, green: 0.616, blue: 1.0)
         }
+    }
+
+    var logoAsset: String {
+        switch self {
+        case .claude: return "AgentLogoClaudeCode"
+        case .codex: return "AgentLogoCodex"
+        }
+    }
+
+    /// Fill for the logo glyph: flat Claude orange, or Codex's official top-to-bottom gradient.
+    var logoStyle: AnyShapeStyle {
+        switch self {
+        case .claude:
+            return AnyShapeStyle(tint)
+        case .codex:
+            return AnyShapeStyle(LinearGradient(
+                colors: [Color(red: 0.694, green: 0.655, blue: 1.0),   // #B1A7FF
+                         Color(red: 0.478, green: 0.616, blue: 1.0),   // #7A9DFF
+                         Color(red: 0.224, green: 0.255, blue: 1.0)],  // #3941FF
+                startPoint: .top, endPoint: .bottom))
+        }
+    }
+}
+
+/// The official Claude Code / Codex mark, drawn as a tinted vector template so it sits with Atoll's glyphs.
+struct AgentLogo: View {
+    let kind: AgentKind
+    var size: CGFloat = 15
+
+    var body: some View {
+        Image(kind.logoAsset)
+            .renderingMode(.template)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .foregroundStyle(kind.logoStyle)
+            .accessibilityLabel(kind.displayName)
     }
 }
 
