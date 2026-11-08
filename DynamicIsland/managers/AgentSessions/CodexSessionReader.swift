@@ -223,8 +223,11 @@ final class CodexSessionReader {
         if let fresh = threadRows(since: cutoff) {
             rows = fresh
             lastRows = fresh
-        } else {
+        } else if !lastRows.isEmpty {
             rows = lastRows.filter { $0.updatedAt >= cutoff }
+        } else {
+            // Index locked (Codex holds it for seconds while compacting) or unreadable: list the rollouts directly.
+            rows = rolloutRows(since: cutoff)
         }
         let terminals = AgentProcessInspector.interactiveProcesses(named: "codex")
         let owners = Self.assignProcesses(threads: rows, processes: terminals.map { ($0.info, $0.cwd) })
@@ -335,6 +338,30 @@ final class CodexSessionReader {
         }
         parsed[path] = (stamp, summary)
         return summary
+    }
+
+    // MARK: Rollout scan (fallback)
+
+    /// Threads reconstructed from recently modified rollout files, for when the SQLite index can't be read.
+    func rolloutRows(since cutoff: Date, limit: Int = 40) -> [ThreadRow] {
+        let root = home.appendingPathComponent("sessions")
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
+        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys) else { return [] }
+        var recent: [(url: URL, modified: Date)] = []
+        for case let url as URL in enumerator where url.pathExtension == "jsonl" {
+            guard let modified = try? url.resourceValues(forKeys: Set(keys)).contentModificationDate,
+                  modified >= cutoff else { continue }
+            recent.append((url, modified))
+        }
+        return recent.sorted { $0.modified > $1.modified }.prefix(limit).compactMap { file in
+            let head = JSONLTailReader.headObjects(at: file.url, limit: 2)
+            guard let meta = head.first(where: { $0.string("type") == "session_meta" })?.dict("payload"),
+                  let id = meta.string("id") ?? meta.string("session_id"),
+                  let cwd = meta.string("cwd") else { return nil }
+            return ThreadRow(id: id, rolloutPath: file.url.path, cwd: cwd, title: nil,
+                             createdAt: JSONLTailReader.date(meta["timestamp"]), updatedAt: file.modified,
+                             originator: meta.string("originator"), model: nil, gitBranch: nil)
+        }
     }
 
     // MARK: Thread index

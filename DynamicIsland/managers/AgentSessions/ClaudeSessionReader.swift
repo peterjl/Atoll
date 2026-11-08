@@ -261,7 +261,7 @@ final class ClaudeSessionReader {
             ?? (entry.cwd as NSString).lastPathComponent
         let lastActivity = [entry.updatedAt, summary.lastEventAt, entry.startedAt].compactMap { $0 }.max() ?? Date()
         let host: AgentHost = entry.kind == "bg"
-            ? .claudeBackgroundJob(id: entry.jobID ?? entry.sessionID)
+            ? .claudeBackgroundJob(id: entry.jobID ?? entry.sessionID, sessionID: entry.sessionID, name: entry.name)
             : .process(pid: entry.pid)
 
         return AgentSession(

@@ -102,8 +102,9 @@ struct AgentQuota: Equatable, Sendable {
 enum AgentHost: Equatable, Sendable {
     /// A CLI process attached to a terminal or editor; resolved through its ancestry when clicked.
     case process(pid: Int32)
-    /// A Claude Code background session (`claude --bg`), reachable with `claude attach`.
-    case claudeBackgroundJob(id: String)
+    /// A Claude Code background session (`claude --bg`). An open `claude attach` client is focused if one
+    /// exists; otherwise a new terminal runs `claude attach <id>`.
+    case claudeBackgroundJob(id: String, sessionID: String, name: String?)
     /// A thread of the Codex desktop app, reachable with a `codex://threads/<id>` link.
     case codexDesktop(threadID: String)
     /// A session hosted by an editor extension; the editor window for `path` is brought forward.

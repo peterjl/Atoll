@@ -90,6 +90,38 @@ enum AgentProcessInspector {
         return Array(pids.prefix(Int(count))).filter { $0 > 0 }
     }
 
+    /// The process's argv (KERN_PROCARGS2), e.g. ["claude", "attach", "5883e5e1"].
+    static func arguments(_ pid: Int32) -> [String]? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        var buffer = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        let argc = Int(buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) })
+        var index = MemoryLayout<Int32>.size
+        while index < size, buffer[index] != 0 { index += 1 }   // executable path
+        while index < size, buffer[index] == 0 { index += 1 }   // padding
+        var args: [String] = []
+        while args.count < argc, index < size {
+            let start = index
+            while index < size, buffer[index] != 0 { index += 1 }
+            args.append(String(decoding: buffer[start..<index], as: UTF8.self))
+            index += 1
+        }
+        return args
+    }
+
+    /// `claude attach <id|name>` clients running in a terminal, with the target they were given.
+    static func claudeAttachClients() -> [(info: Info, target: String)] {
+        allPIDs().compactMap { pid in
+            // The executable is a versioned file behind the `claude` symlink, so match on argv, not the process name.
+            guard let args = arguments(pid), args.count >= 3,
+                  (args[0] as NSString).lastPathComponent == "claude", args[1] == "attach",
+                  let info = info(pid), info.tty != nil else { return nil }
+            return (info, args[2])
+        }
+    }
+
     /// Processes with the given executable name that are attached to a terminal.
     static func interactiveProcesses(named target: String) -> [(info: Info, cwd: String?)] {
         allPIDs().compactMap { pid in

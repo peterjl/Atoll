@@ -208,7 +208,7 @@ struct AgentSessionRow: View {
 
     private var jumpHelp: String {
         switch session.host {
-        case .claudeBackgroundJob: return "Open in a terminal (claude attach)"
+        case .claudeBackgroundJob: return "Jump to its terminal (opens claude attach if none is open)"
         case .codexDesktop: return "Open in Codex"
         case .editorWorkspace: return "Open the editor window"
         case .process: return "Jump to this session's window"
@@ -409,36 +409,36 @@ private extension AgentKind {
         case .codex: return "AgentLogoCodex"
         }
     }
-
-    /// Fill for the logo glyph: flat Claude orange, or Codex's official top-to-bottom gradient.
-    var logoStyle: AnyShapeStyle {
-        switch self {
-        case .claude:
-            return AnyShapeStyle(tint)
-        case .codex:
-            return AnyShapeStyle(LinearGradient(
-                colors: [Color(red: 0.694, green: 0.655, blue: 1.0),   // #B1A7FF
-                         Color(red: 0.478, green: 0.616, blue: 1.0),   // #7A9DFF
-                         Color(red: 0.224, green: 0.255, blue: 1.0)],  // #3941FF
-                startPoint: .top, endPoint: .bottom))
-        }
-    }
 }
 
-/// The official Claude Code / Codex mark, drawn as a tinted vector template so it sits with Atoll's glyphs.
+/// The official marks: Claude Code's pixel glyph tinted Claude orange, and Codex's own app icon
+/// artwork (from the Codex app) shown in its original colors.
 struct AgentLogo: View {
     let kind: AgentKind
     var size: CGFloat = 15
 
     var body: some View {
-        Image(kind.logoAsset)
-            .renderingMode(.template)
-            .resizable()
-            .interpolation(.high)
-            .aspectRatio(contentMode: .fit)
-            .frame(width: size, height: size)
-            .foregroundStyle(kind.logoStyle)
-            .accessibilityLabel(kind.displayName)
+        switch kind {
+        case .claude:
+            Image(kind.logoAsset)
+                .renderingMode(.template)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .foregroundStyle(kind.tint)
+                .accessibilityLabel(kind.displayName)
+        case .codex:
+            // The Codex app icon's cloud, cut out of its white tile; slightly larger to match the glyph's weight.
+            Image(kind.logoAsset)
+                .renderingMode(.original)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size * 1.1, height: size * 1.1)
+                .frame(width: size, height: size)
+                .accessibilityLabel(kind.displayName)
+        }
     }
 }
 

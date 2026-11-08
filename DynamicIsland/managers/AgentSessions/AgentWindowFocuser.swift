@@ -24,7 +24,8 @@ import Foundation
 /// - Terminal.app / iTerm2: the tab whose tty matches the agent process is selected via AppleScript.
 /// - VS Code-family editors: the editor window for the session's folder is focused (the integrated
 ///   terminal panel itself cannot be targeted from outside the editor).
-/// - Claude Code background sessions: a new terminal window runs `claude attach <id>`.
+/// - Claude Code background sessions: the terminal tab already running `claude attach` for it, or else a
+///   new terminal window running `claude attach <id>`.
 /// - Codex desktop threads: opened with a `codex://threads/<id>` link.
 /// - Anything else: the hosting app is activated.
 @MainActor
@@ -46,7 +47,11 @@ enum AgentWindowFocuser {
         switch session.host {
         case .process(let pid):
             return await focusProcess(pid: pid, cwd: session.cwd)
-        case .claudeBackgroundJob(let id):
+        case .claudeBackgroundJob(let id, let sessionID, let name):
+            if let client = attachedClient(jobID: id, sessionID: sessionID, name: name),
+               await focusProcess(pid: client, cwd: session.cwd) == .focused {
+                return .focused
+            }
             return await runInNewTerminal("claude attach \(shellQuote(id))")
         case .codexDesktop(let threadID):
             guard let url = URL(string: "codex://threads/\(threadID)"), NSWorkspace.shared.open(url) else {
@@ -78,6 +83,24 @@ enum AgentWindowFocuser {
         }
         app.unhide()
         return app.activate(options: [.activateAllWindows]) ? .focused : .failed("Could not activate \(app.localizedName ?? "app")")
+    }
+
+    /// The newest `claude attach` client already showing this background session in a terminal.
+    static func attachedClient(jobID: String, sessionID: String, name: String?) -> Int32? {
+        AgentProcessInspector.claudeAttachClients()
+            .filter { attachTarget($0.target, matchesJob: jobID, sessionID: sessionID, name: name) }
+            .max { ($0.info.startedAt ?? .distantPast) < ($1.info.startedAt ?? .distantPast) }?
+            .info.pid
+    }
+
+    /// `claude attach` accepts the job id, the session id, or part of the session name.
+    nonisolated static func attachTarget(_ target: String, matchesJob jobID: String, sessionID: String, name: String?) -> Bool {
+        let t = target.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return false }
+        if t == jobID || t == sessionID { return true }
+        if t.count >= 6, sessionID.hasPrefix(t) || jobID.hasPrefix(t) { return true }
+        if t.count >= 3, let name, name.localizedCaseInsensitiveContains(t) { return true }
+        return false
     }
 
     /// The nearest ancestor that is a regular GUI app (skipping helper processes such as editor pty hosts).

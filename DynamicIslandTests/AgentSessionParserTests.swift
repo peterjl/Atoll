@@ -187,6 +187,30 @@ final class AgentSessionParserTests: XCTestCase {
         XCTAssertNil(owners["elsewhere"])
     }
 
+    func testClaudeAttachTargetMatching() {
+        let job = "ce69abdd", session = "ce69abdd-0918-4014-9882-5a297278a914", name = "photo-organizer-design"
+        XCTAssertTrue(AgentWindowFocuser.attachTarget("ce69abdd", matchesJob: job, sessionID: session, name: name))
+        XCTAssertTrue(AgentWindowFocuser.attachTarget(session, matchesJob: job, sessionID: session, name: name))
+        XCTAssertTrue(AgentWindowFocuser.attachTarget("ce69abdd-0918", matchesJob: job, sessionID: session, name: name))
+        XCTAssertTrue(AgentWindowFocuser.attachTarget("organizer", matchesJob: job, sessionID: session, name: name))
+        XCTAssertFalse(AgentWindowFocuser.attachTarget("5883e5e1", matchesJob: job, sessionID: session, name: name))
+        XCTAssertFalse(AgentWindowFocuser.attachTarget("ce", matchesJob: job, sessionID: session, name: name), "too short to be a name part")
+    }
+
+    func testCodexRolloutScanFallback() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("codex-home-\(UUID().uuidString)")
+        let day = home.appendingPathComponent("sessions/2026/11/08", isDirectory: true)
+        try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let meta = #"{"timestamp":"2026-11-08T08:00:00.000Z","type":"session_meta","payload":{"id":"t-1","cwd":"/Users/me/proj","originator":"codex-tui","timestamp":"2026-11-08T08:00:00.000Z"}}"#
+        try (meta + "\n").write(to: day.appendingPathComponent("rollout-2026-11-08T08-00-00-t-1.jsonl"), atomically: true, encoding: .utf8)
+
+        let rows = CodexSessionReader(home: home).rolloutRows(since: Date().addingTimeInterval(-3600))
+        XCTAssertEqual(rows.map(\.id), ["t-1"])
+        XCTAssertEqual(rows.first?.cwd, "/Users/me/proj")
+        XCTAssertEqual(rows.first?.originator, "codex-tui")
+    }
+
     // MARK: Shared pieces
 
     func testStatuslineSnapshotParsesQuotaAndContext() {
