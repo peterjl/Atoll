@@ -1,5 +1,5 @@
 "CFBundleDisplayName" = "Atoll";
-"NSAppleEventsUsageDescription" = "Atoll, Spotify ve Apple Music'i kontrol etmek için AppleScript kullanır.";
+"NSAppleEventsUsageDescription" = "Atoll; Spotify, Apple Music ve Notlar'ı kontrol etmek ve Claude Code ile Codex oturumlarını Terminal veya iTerm'de öne getirmek için AppleScript kullanır.";
 "NSBluetoothAlwaysUsageDescription" = "Atoll, ses aygıtları bağlandığında bunları algılamak ve HUD'da pil durumlarını göstermek için Bluetooth erişimine ihtiyaç duyar.";
 "NSCalendarsFullAccessUsageDescription" = "Takvim etkinliklerini çentik içinde gösterir.";
 "NSCalendarsUsageDescription" = "Takvim modu için gereklidir.";
