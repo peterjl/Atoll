@@ -66,6 +66,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case shortcuts
     case notes
     case terminal
+    case agents
     case about
 
     var id: String { rawValue }
@@ -79,7 +80,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .timer, .calendar, .notes:                                      return .productivity
         case .clipboard, .screenAssistant, .colorPicker, .shelf,
              .downloads, .shortcuts:                                         return .utilities
-        case .stats, .terminal:                                              return .developer
+        case .stats, .terminal, .agents:                                     return .developer
         case .extensions:                                                    return .integrations
         case .about:                                                         return .info
         }
@@ -107,6 +108,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .shortcuts: return String(localized: "Shortcuts")
         case .notes: return String(localized: "Notes")
         case .terminal: return String(localized: "Terminal")
+        case .agents: return String(localized: "Agents")
         case .about: return String(localized: "About")
         }
     }
@@ -133,6 +135,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .shortcuts: return "keyboard"
         case .notes: return "note.text"
         case .terminal: return "apple.terminal"
+        case .agents: return "sparkles.rectangle.stack.fill"
         case .about: return "info.circle"
         }
     }
@@ -159,6 +162,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .shortcuts: return .orange
         case .notes: return Color(red: 0.979, green: 0.716, blue: 0.153, opacity: 1.000)
         case .terminal: return Color(red: 0.2, green: 0.8, blue: 0.4)
+        case .agents: return Color(red: 0.86, green: 0.45, blue: 0.33)
         case .about: return .secondary
         }
     }
@@ -435,8 +439,6 @@ private enum SettingsSearchIndex {
         // Stats
         SettingsSearchEntry(tab: .stats, title: "Enable system stats monitoring", keywords: ["stats", "monitoring"], highlightID: SettingsTab.stats.highlightID(for: "Enable system stats monitoring")),
         SettingsSearchEntry(tab: .stats, title: "Enable LLM Usage Monitor", keywords: ["llm", "usage", "ai", "monitor"], highlightID: SettingsTab.stats.highlightID(for: "Enable LLM Usage Monitor")),
-        SettingsSearchEntry(tab: .stats, title: "Agents Tab", keywords: ["agents", "claude", "codex", "sessions", "terminal", "coding"], highlightID: SettingsTab.stats.highlightID(for: "Agents Tab")),
-        SettingsSearchEntry(tab: .stats, title: "Agent Ready Alert", keywords: ["agents", "claude", "codex", "notify", "ready", "sneak peek"], highlightID: SettingsTab.stats.highlightID(for: "Agent Ready Alert")),
         SettingsSearchEntry(tab: .stats, title: "Claude Provider", keywords: ["llm", "claude", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Claude Provider")),
         SettingsSearchEntry(tab: .stats, title: "Codex Provider", keywords: ["llm", "codex", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Codex Provider")),
         SettingsSearchEntry(tab: .stats, title: "Cursor Provider", keywords: ["llm", "cursor", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Cursor Provider")),
@@ -483,6 +485,13 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .terminal, title: "Scrollback lines", keywords: ["terminal", "scrollback", "buffer", "history"], highlightID: SettingsTab.terminal.highlightID(for: "Scrollback lines")),
         SettingsSearchEntry(tab: .terminal, title: "Option as Meta", keywords: ["terminal", "option", "meta", "alt", "key"], highlightID: SettingsTab.terminal.highlightID(for: "Option as Meta")),
         SettingsSearchEntry(tab: .terminal, title: "Mouse reporting", keywords: ["terminal", "mouse", "reporting", "vim", "tmux"], highlightID: SettingsTab.terminal.highlightID(for: "Mouse reporting")),
+
+        // Agents
+        SettingsSearchEntry(tab: .agents, title: "Enable agents", keywords: ["agents", "claude", "codex", "sessions", "coding", "ai"], highlightID: SettingsTab.agents.highlightID(for: "Enable agents")),
+        SettingsSearchEntry(tab: .agents, title: "Claude Code", keywords: ["claude", "anthropic", "agents"], highlightID: SettingsTab.agents.highlightID(for: "Claude Code")),
+        SettingsSearchEntry(tab: .agents, title: "Codex", keywords: ["codex", "openai", "agents"], highlightID: SettingsTab.agents.highlightID(for: "Codex")),
+        SettingsSearchEntry(tab: .agents, title: "Show a notch alert when a session finishes or needs input", keywords: ["agents", "notify", "ready", "sneak peek", "alert"], highlightID: SettingsTab.agents.highlightID(for: "Show a notch alert when a session finishes or needs input")),
+        SettingsSearchEntry(tab: .agents, title: "Open Automation Settings", keywords: ["agents", "jump", "terminal", "iterm", "permission", "automation"], highlightID: SettingsTab.agents.highlightID(for: "Open Automation Settings")),
     ]
 
     /// Which segment of the Lock Screen tab a search result lives on, or nil
@@ -822,6 +831,7 @@ struct SettingsView: View {
             // Developer
             .stats,
             .terminal,
+            .agents,
             // Integrations
             .extensions,
             // Info
@@ -1014,7 +1024,7 @@ struct SettingsView: View {
 
     private func isTabVisible(_ tab: SettingsTab) -> Bool {
         switch tab {
-        case .timer, .stats, .clipboard, .screenAssistant, .colorPicker, .shelf, .notes, .terminal:
+        case .timer, .stats, .clipboard, .screenAssistant, .colorPicker, .shelf, .notes, .terminal, .agents:
             return !enableMinimalisticUI
         default:
             return true
@@ -1103,6 +1113,10 @@ struct SettingsView: View {
         case .terminal:
             SettingsForm(tab: .terminal) {
                 TerminalSettings()
+            }
+        case .agents:
+            SettingsForm(tab: .agents) {
+                AgentsSettings()
             }
         case .about:
             if let controller = updaterController {
@@ -7280,6 +7294,29 @@ struct Shortcuts: View {
                 Section {
                     HStack {
                         VStack(alignment: .leading) {
+                            KeyboardShortcuts.Recorder("Toggle Agents Tab:", name: .toggleAgentsTab)
+                                .disabled(!enableShortcuts || !Defaults[.enableAgentSessionsFeature])
+                            if !Defaults[.enableAgentSessionsFeature] {
+                                Text("Agents feature is disabled")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 2)
+                            }
+                        }
+                        Spacer()
+                    }
+                } header: {
+                    Text("Agents")
+                } footer: {
+                    Text("Opens the Agents tab in the notch. No shortcut is set by default. Only works when the Agents feature is enabled.")
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+
+                Section {
+                    HStack {
+                        VStack(alignment: .leading) {
                             KeyboardShortcuts.Recorder("Color Picker Panel:", name: .colorPickerPanel)
                                 .disabled(!enableShortcuts || !enableColorPickerFeature)
                             if !enableColorPickerFeature {
@@ -7978,8 +8015,6 @@ struct StatsSettings: View {
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableLLMUsageFeature) var enableLLMUsageFeature
     @Default(.enableNewAPIProvider) var enableNewAPIProvider
-    @Default(.enableAgentSessionsFeature) var enableAgentSessionsFeature
-    @Default(.agentSessionsCodexLookbackHours) var agentSessionsCodexLookbackHours
     @Default(.statsStopWhenNotchCloses) var statsStopWhenNotchCloses
     @Default(.statsUpdateInterval) var statsUpdateInterval
     @Default(.showCpuGraph) var showCpuGraph
@@ -8040,35 +8075,6 @@ struct StatsSettings: View {
                 Text("General")
             } footer: {
                 Text("When enabled, the Stats tab will display real-time system performance graphs. This feature requires system permissions and may use additional battery. Enabling LLM Usage Monitor adds a Usage tab that tracks token usage and spend across your configured AI providers.")
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            }
-
-            Section {
-                Defaults.Toggle(key: .enableAgentSessionsFeature) {
-                    Text("Show Agents tab")
-                }
-                .settingsHighlight(id: highlightID("Agents Tab"))
-                if enableAgentSessionsFeature {
-                    Defaults.Toggle(key: .agentSessionsShowClaude) {
-                        Text("Claude Code")
-                    }
-                    Defaults.Toggle(key: .agentSessionsShowCodex) {
-                        Text("Codex")
-                    }
-                    Defaults.Toggle(key: .agentSessionsNotifyOnReady) {
-                        Text("Show a notch alert when a session finishes or needs input")
-                    }
-                    .settingsHighlight(id: highlightID("Agent Ready Alert"))
-                    Stepper(value: $agentSessionsCodexLookbackHours, in: 1...48, step: 1) {
-                        Text("Keep Codex app threads for \(Int(agentSessionsCodexLookbackHours)) h after their last update")
-                    }
-                }
-            } header: {
-                Text("Coding Agents")
-            } footer: {
-                Text("Lists running Claude Code and Codex sessions by reading their local session files (no network requests). Click a session to jump to its Terminal, iTerm or editor window; tap the notch alert to jump to the session that just finished. Claude's 5h / 7d quota appears once your status line script saves its input to ~/.claude/atoll/statusline/<session_id>.json.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)
@@ -9621,6 +9627,135 @@ struct TerminalSettings: View {
             }
         }
         .navigationTitle("Terminal")
+    }
+}
+
+// MARK: - Agents Settings
+
+struct AgentsSettings: View {
+    @ObservedObject private var manager = AgentSessionsManager.shared
+    @Default(.enableAgentSessionsFeature) var enableAgentSessionsFeature
+    @Default(.agentSessionsNotifyOnReady) var agentSessionsNotifyOnReady
+    @Default(.agentSessionsSneakPeekDuration) var agentSessionsSneakPeekDuration
+    @Default(.agentSessionsCodexLookbackHours) var agentSessionsCodexLookbackHours
+
+    private func highlightID(_ title: String) -> String {
+        SettingsTab.agents.highlightID(for: title)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .enableAgentSessionsFeature) {
+                    Text("Enable agents")
+                }
+                .settingsHighlight(id: highlightID("Enable agents"))
+            } header: {
+                Text("General")
+            } footer: {
+                Text("Adds an Agents tab listing your running Claude Code and Codex sessions: what each is doing, its latest reply, and how much of its context and usage limits are used. Everything is read from the agents' local session files; nothing is sent over the network.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if enableAgentSessionsFeature {
+                Section {
+                    Defaults.Toggle(key: .agentSessionsShowClaude) {
+                        Text("Claude Code")
+                    }
+                    .settingsHighlight(id: highlightID("Claude Code"))
+                    Defaults.Toggle(key: .agentSessionsShowCodex) {
+                        Text("Codex")
+                    }
+                    .settingsHighlight(id: highlightID("Codex"))
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Keep Codex app threads listed for")
+                            Spacer()
+                            Text("\(Int(agentSessionsCodexLookbackHours)) h")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        Slider(value: $agentSessionsCodexLookbackHours, in: 1...48, step: 1)
+                    }
+                } header: {
+                    Text("Sources")
+                } footer: {
+                    Text("Terminal sessions are listed while their process runs. Codex app threads have no process to watch, so they stay listed for this long after their last update.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Defaults.Toggle(key: .agentSessionsNotifyOnReady) {
+                        Text("Show a notch alert when a session finishes or needs input")
+                    }
+                    .settingsHighlight(id: highlightID("Show a notch alert when a session finishes or needs input"))
+                    if agentSessionsNotifyOnReady {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Alert duration")
+                                Spacer()
+                                Text("\(Int(agentSessionsSneakPeekDuration)) s")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $agentSessionsSneakPeekDuration, in: 2...15, step: 1)
+                        }
+                    }
+                } header: {
+                    Text("Alerts")
+                } footer: {
+                    Text("Tap the alert under the notch to jump to that session.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Button("Open Automation Settings") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .settingsHighlight(id: highlightID("Open Automation Settings"))
+                } header: {
+                    Text("Jump to Session")
+                } footer: {
+                    Text("Clicking a session selects its tab in Terminal or iTerm through AppleScript, so macOS asks once whether Atoll may control them. Sessions in VS Code bring that editor window forward. Background Claude Code sessions switch to an open claude attach tab, or open one.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    LabeledContent("Claude Code") {
+                        Text(quotaSummary(.claude))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    LabeledContent("Codex") {
+                        Text(quotaSummary(.codex))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                } header: {
+                    Text("Usage Limits")
+                } footer: {
+                    Text("Codex writes its limits into its session logs. Claude Code only hands them to the status line, so they appear once your status line script saves its input to ~/.claude/atoll/statusline/<session_id>.json.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Agents")
+    }
+
+    private func quotaSummary(_ kind: AgentKind) -> String {
+        guard let quota = manager.quotas[kind], !quota.windows.isEmpty else {
+            return String(localized: "Not available")
+        }
+        return quota.windows
+            .map { "\($0.label) \(Int($0.usedPercent.rounded()))%" }
+            .joined(separator: " · ")
     }
 }
 

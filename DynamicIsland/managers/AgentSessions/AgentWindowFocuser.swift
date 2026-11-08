@@ -55,25 +55,25 @@ enum AgentWindowFocuser {
             return await runInNewTerminal("claude attach \(shellQuote(id))")
         case .codexDesktop(let threadID):
             guard let url = URL(string: "codex://threads/\(threadID)"), NSWorkspace.shared.open(url) else {
-                return .failed("Codex app not installed")
+                return .failed(String(localized: "Codex app not installed"))
             }
             return .focused
         case .editorWorkspace(let path):
             return await openFolderInEditor(path, preferredBundleID: nil)
         case .unknown:
-            return .failed("Session has no window")
+            return .failed(String(localized: "Session has no window"))
         }
     }
 
     // MARK: Processes
 
     static func focusProcess(pid: Int32, cwd: String) async -> Outcome {
-        guard AgentProcessInspector.isAlive(pid) else { return .failed("Session has exited") }
+        guard AgentProcessInspector.isAlive(pid) else { return .failed(String(localized: "Session has exited")) }
         let tty = AgentProcessInspector.info(pid)?.tty
         guard let app = hostingApplication(of: pid) else {
             // tmux/screen/ssh: no GUI ancestor. Try the terminals that expose ttys anyway.
             if let tty, await selectTerminalTab(tty: tty) { return .focused }
-            return .failed("No window found (tmux or remote session?)")
+            return .failed(String(localized: "No window found (tmux or remote session?)"))
         }
         let bundleID = app.bundleIdentifier ?? ""
         if bundleID == terminalBundleID || bundleID == iTermBundleID, let tty {
@@ -82,7 +82,9 @@ enum AgentWindowFocuser {
             return await openFolderInEditor(cwd, preferredBundleID: bundleID)
         }
         app.unhide()
-        return app.activate(options: [.activateAllWindows]) ? .focused : .failed("Could not activate \(app.localizedName ?? "app")")
+        return app.activate(options: [.activateAllWindows])
+            ? .focused
+            : .failed(String(localized: "Could not activate \(app.localizedName ?? "the app")"))
     }
 
     /// The newest `claude attach` client already showing this background session in a terminal.
@@ -165,7 +167,7 @@ enum AgentWindowFocuser {
         let folder = URL(fileURLWithPath: path, isDirectory: true)
         let bundleIDs = [preferredBundleID].compactMap { $0 } + ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92"]
         guard let appURL = bundleIDs.lazy.compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }).first else {
-            return .failed("No editor found")
+            return .failed(String(localized: "No editor found"))
         }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
@@ -257,11 +259,11 @@ enum AgentWindowFocuser {
         }
     }
 
-    private static func automationMessage(_ stderr: String) -> String {
+    nonisolated private static func automationMessage(_ stderr: String) -> String {
         if stderr.contains("-1743") || stderr.localizedCaseInsensitiveContains("not authorized") {
-            return "Allow Atoll to control your terminal in System Settings › Privacy & Security › Automation"
+            return String(localized: "Allow Atoll to control your terminal in System Settings › Privacy & Security › Automation")
         }
         let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "AppleScript failed" : trimmed
+        return trimmed.isEmpty ? String(localized: "AppleScript failed") : trimmed
     }
 }

@@ -1288,14 +1288,6 @@ extension Defaults.Keys {
     static let enableNewAPIProvider = Key<Bool>("enableNewAPIProvider", default: false)
     static let newAPIAccounts = Key<[NewAPIAccount]>("newAPIAccounts", default: [])
 
-    // MARK: Agent Sessions (Claude Code / Codex)
-    static let enableAgentSessionsFeature = Key<Bool>("enableAgentSessionsFeature", default: true)
-    static let agentSessionsShowClaude = Key<Bool>("agentSessionsShowClaude", default: true)
-    static let agentSessionsShowCodex = Key<Bool>("agentSessionsShowCodex", default: true)
-    static let agentSessionsNotifyOnReady = Key<Bool>("agentSessionsNotifyOnReady", default: true)
-    static let agentSessionsSneakPeekDuration = Key<Double>("agentSessionsSneakPeekDuration", default: 4)
-    /// Codex desktop threads count as active for this long after their last update.
-    static let agentSessionsCodexLookbackHours = Key<Double>("agentSessionsCodexLookbackHours", default: 6)
     static let autoStartStatsMonitoring = Key<Bool>("autoStartStatsMonitoring", default: true)
     static let statsStopWhenNotchCloses = Key<Bool>("statsStopWhenNotchCloses", default: true)
     static let statsUpdateInterval = Key<Double>("statsUpdateInterval", default: 1.0)
@@ -1306,6 +1298,15 @@ extension Defaults.Keys {
     static let showDiskGraph = Key<Bool>("showDiskGraph", default: false)
     static let cpuTemperatureUnit = Key<LockScreenWeatherTemperatureUnit>("cpuTemperatureUnit", default: .matchingSystemPreference)
     
+    // MARK: Agents Feature (Claude Code / Codex sessions)
+    static let enableAgentSessionsFeature = Key<Bool>("enableAgentSessionsFeature", default: false)
+    static let agentSessionsShowClaude = Key<Bool>("agentSessionsShowClaude", default: true)
+    static let agentSessionsShowCodex = Key<Bool>("agentSessionsShowCodex", default: true)
+    static let agentSessionsNotifyOnReady = Key<Bool>("agentSessionsNotifyOnReady", default: true)
+    static let agentSessionsSneakPeekDuration = Key<Double>("agentSessionsSneakPeekDuration", default: 4)
+    /// Codex desktop threads count as active for this long after their last update.
+    static let agentSessionsCodexLookbackHours = Key<Double>("agentSessionsCodexLookbackHours", default: 6)
+
     // MARK: Terminal Feature
     static let enableTerminalFeature = Key<Bool>("enableTerminalFeature", default: false)
     static let terminalShellPath = Key<String>("terminalShellPath", default: "/bin/zsh")

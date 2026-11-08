@@ -210,6 +210,7 @@ func applyProfileSettings(_ profiles: Set<String>) {
         Defaults[.enableColorPickerFeature] = true
         Defaults[.enableStatsFeature] = true
         Defaults[.enableTerminalFeature] = true
+        Defaults[.enableAgentSessionsFeature] = true
         Defaults[.enableTimerFeature] = true
         Defaults[.enableScreenAssistant] = true
         Defaults[.showMirror] = false

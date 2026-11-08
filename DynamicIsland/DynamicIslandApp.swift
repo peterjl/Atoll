@@ -573,6 +573,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else if coordinator.currentView == .clipboard {
             // Clipboard has its own fixed height source; don't inherit the notes layout state.
             baseSize.height = max(baseSize.height, NotesLayoutState.list.preferredHeight)
+        } else if coordinator.currentView == .agents {
+            baseSize.height = max(baseSize.height, NotchAgentsView.preferredHeight)
         } else if coordinator.currentView == .terminal {
             let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
             let maxFraction = Defaults[.terminalMaxHeightFraction]
@@ -868,6 +870,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Observe terminal settings changes
         Defaults.publisher(.enableTerminalFeature, options: []).sink { [weak self] _ in
             self?.debouncedUpdateWindowSize()
+        }.store(in: &cancellables)
+
+        // Observe Agents feature changes
+        Defaults.publisher(.enableAgentSessionsFeature, options: []).sink { [weak self] _ in
+            self?.debouncedUpdateWindowSize()
+            Task { @MainActor [weak self] in
+                self?.updateFeatureShortcutAvailability()
+            }
         }.store(in: &cancellables)
 
         Defaults.publisher(.terminalMaxHeightFraction, options: []).sink { [weak self] _ in
@@ -1503,6 +1513,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        KeyboardShortcuts.onKeyDown(for: .toggleAgentsTab) { [weak self] in
+            guard let self else { return }
+            guard Defaults[.enableShortcuts], Defaults[.enableAgentSessionsFeature] else { return }
+
+            if vm.notchState == .closed {
+                closeNotchWorkItem?.cancel()
+                closeNotchWorkItem = nil
+                vm.open()
+                coordinator.currentView = .agents
+            } else if coordinator.currentView == .agents {
+                coordinator.suppressHoverOpen()
+                vm.close()
+            } else {
+                closeNotchWorkItem?.cancel()
+                closeNotchWorkItem = nil
+                coordinator.currentView = .agents
+            }
+        }
+
         KeyboardShortcuts.onKeyDown(for: .screenAssistantPanel) { [weak self] in
             guard let self else { return }
             guard Defaults[.enableShortcuts], Defaults[.enableScreenAssistant] else { return }
@@ -1530,6 +1559,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateShortcut(.colorPickerPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableColorPickerFeature])
         updateShortcut(.screenAssistantPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableScreenAssistant])
         updateShortcut(.toggleTerminalTab, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableTerminalFeature])
+        updateShortcut(.toggleAgentsTab, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableAgentSessionsFeature])
         updateShortcut(.toggleCaffeinate, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableCaffeinate])
     }
 

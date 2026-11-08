@@ -26,12 +26,33 @@ struct NotchAgentsView: View {
 
     @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject private var manager = AgentSessionsManager.shared
+    @Default(.enableAgentSessionsFeature) private var enableAgentSessionsFeature
     @State private var expandedID: String?
     @State private var hoveredID: String?
     @State private var suppressionToken = UUID()
     @State private var isSuppressing = false
 
     var body: some View {
+        if enableAgentSessionsFeature {
+            sessionList
+        } else {
+            // Feature disabled placeholder (the tab can stay selected with "Remember last tab")
+            VStack(spacing: 8) {
+                Image(systemName: "sparkles.rectangle.stack")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+                Text("Agents is disabled")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Enable it in Settings → Agents")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var sessionList: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
             if manager.sessions.isEmpty {
@@ -98,9 +119,9 @@ struct NotchAgentsView: View {
     private var summaryLine: String {
         let working = manager.sessions.filter { $0.state == .working }.count
         let waiting = manager.sessions.filter { $0.state == .waiting }.count
-        var parts = ["\(manager.sessions.count) active"]
-        if working > 0 { parts.append("\(working) working") }
-        if waiting > 0 { parts.append("\(waiting) waiting") }
+        var parts = [String(localized: "\(manager.sessions.count) active")]
+        if working > 0 { parts.append(String(localized: "\(working) working")) }
+        if waiting > 0 { parts.append(String(localized: "\(waiting) waiting")) }
         return parts.joined(separator: " · ")
     }
 
@@ -198,21 +219,21 @@ struct AgentSessionRow: View {
         switch session.state {
         case .working:
             let latest = session.steps.last { $0.kind != .prompt }
-            return (latest?.text ?? session.lastPrompt ?? "Working…").agentPreview(limit: 240)
+            return (latest?.text ?? session.lastPrompt ?? String(localized: "Working…")).agentPreview(limit: 240)
         case .waiting:
-            return "Waiting for your approval"
+            return String(localized: "Waiting for your approval")
         case .ready, .interrupted:
-            return (session.lastSummary ?? session.steps.last?.text ?? session.lastPrompt ?? "Ready").agentPreview(limit: 240)
+            return (session.lastSummary ?? session.steps.last?.text ?? session.lastPrompt ?? String(localized: "Ready")).agentPreview(limit: 240)
         }
     }
 
     private var jumpHelp: String {
         switch session.host {
-        case .claudeBackgroundJob: return "Jump to its terminal (opens claude attach if none is open)"
-        case .codexDesktop: return "Open in Codex"
-        case .editorWorkspace: return "Open the editor window"
-        case .process: return "Jump to this session's window"
-        case .unknown: return "No window to jump to"
+        case .claudeBackgroundJob: return String(localized: "Jump to its terminal (opens claude attach if none is open)")
+        case .codexDesktop: return String(localized: "Open in Codex")
+        case .editorWorkspace: return String(localized: "Open the editor window")
+        case .process: return String(localized: "Jump to this session's window")
+        case .unknown: return String(localized: "No window to jump to")
         }
     }
 
@@ -334,10 +355,10 @@ private struct AgentStateLabel: View {
     private func text(now: Date) -> String {
         switch session.state {
         case .working:
-            guard let started = session.turnStartedAt else { return "Working" }
+            guard let started = session.turnStartedAt else { return String(localized: "Working") }
             return AgentFormat.duration(now.timeIntervalSince(started))
         case .waiting:
-            return "Needs input"
+            return session.state.label
         case .ready, .interrupted:
             return "\(session.state.label) · \(AgentFormat.ago(now.timeIntervalSince(session.lastActivity)))"
         }
@@ -387,8 +408,10 @@ struct AgentQuotaChip: View {
     }
 
     private func resetHelp(_ window: AgentQuotaWindow) -> String {
-        guard let resets = window.resetsAt, resets > Date() else { return "\(quota.kind.displayName) \(window.label) window" }
-        return "\(quota.kind.displayName) \(window.label) window resets in \(AgentFormat.duration(resets.timeIntervalSinceNow))"
+        guard let resets = window.resetsAt, resets > Date() else {
+            return String(localized: "\(quota.kind.displayName) \(window.label) window")
+        }
+        return String(localized: "\(quota.kind.displayName) \(window.label) window resets in \(AgentFormat.duration(resets.timeIntervalSinceNow))")
     }
 }
 
@@ -454,10 +477,10 @@ private extension AgentSessionState {
 
     var label: String {
         switch self {
-        case .working: return "Working"
-        case .waiting: return "Needs input"
-        case .ready: return "Ready"
-        case .interrupted: return "Stopped"
+        case .working: return String(localized: "Working")
+        case .waiting: return String(localized: "Needs input")
+        case .ready: return String(localized: "Ready")
+        case .interrupted: return String(localized: "Stopped")
         }
     }
 }
@@ -491,20 +514,29 @@ enum AgentFormat {
         }
     }
 
+    private static let durationFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter()
+        f.allowedUnits = [.day, .hour, .minute, .second]
+        f.maximumUnitCount = 2
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+
+    /// "3m 4s" / "1h 2m", in the app's language.
     static func duration(_ seconds: TimeInterval) -> String {
-        let s = max(0, Int(seconds))
-        if s >= 86_400 { return "\(s / 86_400)d \(s % 86_400 / 3600)h" }
-        if s >= 3600 { return "\(s / 3600)h \(s % 3600 / 60)m" }
-        if s >= 60 { return "\(s / 60)m \(s % 60)s" }
-        return "\(s)s"
+        durationFormatter.string(from: max(0, seconds.rounded())) ?? ""
     }
 
+    /// "5 min. ago", in the app's language.
     static func ago(_ seconds: TimeInterval) -> String {
-        let s = max(0, Int(seconds))
-        if s < 60 { return "now" }
-        if s < 3600 { return "\(s / 60)m ago" }
-        if s < 86_400 { return "\(s / 3600)h ago" }
-        return "\(s / 86_400)d ago"
+        guard seconds >= 60 else { return String(localized: "just now") }
+        return relativeFormatter.localizedString(fromTimeInterval: -seconds)
     }
 
     static func money(_ value: Double) -> String {

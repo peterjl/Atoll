@@ -121,6 +121,11 @@ func enabledStandardTabCount() -> Int {
         count += 1
     }
 
+    // Agents tab
+    if Defaults[.enableAgentSessionsFeature] {
+        count += 1
+    }
+
     // Notes / Clipboard tab
     if Defaults[.enableNotes] || (Defaults[.enableClipboardManager] && Defaults[.clipboardDisplayMode] == .separateTab) {
         count += 1

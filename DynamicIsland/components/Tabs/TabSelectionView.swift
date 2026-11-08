@@ -90,7 +90,7 @@ struct TabSelectionView: View {
 
         // Live Claude Code / Codex sessions
         if enableAgentSessionsFeature {
-            tabsArray.append(TabModel(label: "Agents", icon: "terminal.fill", view: .agents))
+            tabsArray.append(TabModel(label: "Agents", icon: "sparkles.rectangle.stack.fill", view: .agents))
         }
 
         if Defaults[.enableNotes] || (Defaults[.enableClipboardManager] && Defaults[.clipboardDisplayMode] == .separateTab) {

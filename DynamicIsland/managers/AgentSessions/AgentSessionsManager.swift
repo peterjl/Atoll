@@ -203,17 +203,18 @@ final class AgentSessionsManager: ObservableObject {
         let finished = sessions.filter { previousStates[$0.id] == .working && $0.state != .working }
         guard let session = finished.first else { return }
         announcedSession = session
-        let (verb, icon, color): (String, String, Color) = switch session.state {
-        case .waiting: ("needs you", "hand.raised.fill", .orange)
-        case .interrupted: ("stopped", "stop.circle.fill", .red)
-        default: ("is ready", "checkmark.circle.fill", .green)
+        let name = session.kind.displayName
+        let (title, icon, color): (String, String, Color) = switch session.state {
+        case .waiting: (String(localized: "\(name) needs you"), "hand.raised.fill", .orange)
+        case .interrupted: (String(localized: "\(name) stopped"), "stop.circle.fill", .red)
+        default: (String(localized: "\(name) is ready"), "checkmark.circle.fill", .green)
         }
         DynamicIslandViewCoordinator.shared.toggleSneakPeek(
             status: true,
             type: .agentSession,
             duration: Defaults[.agentSessionsSneakPeekDuration],
             icon: icon,
-            title: "\(session.kind.displayName) \(verb)",
+            title: title,
             subtitle: session.title,
             accentColor: color
         )
